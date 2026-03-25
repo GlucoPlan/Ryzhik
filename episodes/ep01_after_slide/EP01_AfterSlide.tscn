@@ -1,0 +1,244 @@
+[gd_scene load_steps=2 format=3 uid="uid://ep01scene"]
+
+[ext_resource type="Script" path="res://episodes/ep01_after_slide/ep01.gd" id="1"]
+
+[node name="EP01" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.529, 0.808, 0.922, 1)
+
+[node name="RyzhikPlaceholder" type="ColorRect" parent="."]
+offset_left = 160.0
+offset_top = 100.0
+offset_right = 320.0
+offset_bottom = 280.0
+color = Color(1, 0.478, 0.184, 1)
+
+[node name="RyzhikEmoji" type="Label" parent="RyzhikPlaceholder"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -32.0
+offset_top = -32.0
+offset_right = 32.0
+offset_bottom = 32.0
+text = "🦊"
+theme_override_font_sizes/font_size = 56
+
+[node name="StatusIcon" type="Label" parent="RyzhikPlaceholder"]
+offset_left = 120.0
+offset_top = -10.0
+offset_right = 160.0
+offset_bottom = 30.0
+text = ""
+theme_override_font_sizes/font_size = 24
+
+[node name="SpeechBubble" type="CanvasLayer" parent="."]
+visible = false
+
+[node name="Panel" type="PanelContainer" parent="SpeechBubble"]
+offset_left = 80.0
+offset_top = 50.0
+offset_right = 400.0
+offset_bottom = 110.0
+
+[node name="Label" type="Label" parent="SpeechBubble/Panel"]
+layout_mode = 2
+text = ""
+theme_override_font_sizes/font_size = 15
+
+[node name="Minigames" type="Node2D" parent="."]
+
+[node name="GlucometerTap" type="Node2D" parent="Minigames"]
+visible = false
+
+[node name="DeviceButton" type="Button" parent="Minigames/GlucometerTap"]
+offset_left = 140.0
+offset_top = 290.0
+offset_right = 340.0
+offset_bottom = 430.0
+text = "🩺\nГлюкометр"
+theme_override_font_sizes/font_size = 18
+
+[node name="Display" type="Label" parent="Minigames/GlucometerTap/DeviceButton"]
+offset_left = 50.0
+offset_top = 8.0
+offset_right = 160.0
+offset_bottom = 40.0
+text = "----"
+theme_override_font_sizes/font_size = 20
+
+[node name="TapHint" type="Label" parent="Minigames/GlucometerTap"]
+offset_left = 100.0
+offset_top = 440.0
+offset_right = 380.0
+offset_bottom = 470.0
+text = "👆 Нажми на глюкометр!"
+theme_override_font_sizes/font_size = 14
+
+[node name="ChoiceCards" type="VBoxContainer" parent="Minigames"]
+visible = false
+offset_left = 40.0
+offset_top = 290.0
+offset_right = 440.0
+offset_bottom = 530.0
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="HBoxContainer" parent="UI"]
+offset_right = 480.0
+offset_bottom = 44.0
+
+[node name="BackButton" type="Button" parent="UI/TopBar"]
+layout_mode = 2
+text = "←"
+theme_override_font_sizes/font_size = 20
+
+[node name="ProgressBar" type="ProgressBar" parent="UI/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+value = 10.0
+
+[node name="SugarMeter" type="HBoxContainer" parent="UI"]
+visible = false
+offset_left = 10.0
+offset_top = 555.0
+offset_right = 470.0
+offset_bottom = 595.0
+
+[node name="MeterLabel" type="Label" parent="UI/SugarMeter"]
+layout_mode = 2
+text = "Сахар"
+theme_override_font_sizes/font_size = 13
+
+[node name="FillBar" type="ProgressBar" parent="UI/SugarMeter"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 15.0
+value = 5.0
+
+[node name="ValueLabel" type="Label" parent="UI/SugarMeter"]
+layout_mode = 2
+text = "5.0"
+theme_override_font_sizes/font_size = 15
+
+[node name="ZoneLabel" type="Label" parent="UI/SugarMeter"]
+layout_mode = 2
+text = "Норма ✅"
+theme_override_font_sizes/font_size = 13
+
+[node name="StoryCard" type="PanelContainer" parent="UI"]
+offset_left = 0.0
+offset_top = 600.0
+offset_right = 480.0
+offset_bottom = 854.0
+
+[node name="VBox" type="VBoxContainer" parent="UI/StoryCard"]
+layout_mode = 2
+
+[node name="StoryLabel" type="RichTextLabel" parent="UI/StoryCard/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 110)
+bbcode_enabled = true
+text = ""
+theme_override_font_sizes/normal_font_size = 15
+
+[node name="NextButton" type="Button" parent="UI/StoryCard/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 54)
+visible = false
+text = "Далее →"
+theme_override_font_sizes/font_size = 18
+
+[node name="ResultScreen" type="CanvasLayer" parent="."]
+visible = false
+
+[node name="BG" type="ColorRect" parent="ResultScreen"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(1, 0.972, 0.941, 1)
+
+[node name="Panel" type="VBoxContainer" parent="ResultScreen"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -280.0
+offset_right = 200.0
+offset_bottom = 280.0
+
+[node name="TitleLabel" type="Label" parent="ResultScreen/Panel"]
+layout_mode = 2
+text = ""
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="ResultScreen/Panel"]
+layout_mode = 2
+autowrap_mode = 3
+text = ""
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="StarsRow" type="HBoxContainer" parent="ResultScreen/Panel"]
+layout_mode = 2
+alignment = 1
+
+[node name="Star1" type="Label" parent="ResultScreen/Panel/StarsRow"]
+layout_mode = 2
+text = "⭐"
+theme_override_font_sizes/font_size = 52
+modulate = Color(1, 1, 1, 0)
+
+[node name="Star2" type="Label" parent="ResultScreen/Panel/StarsRow"]
+layout_mode = 2
+text = "⭐"
+theme_override_font_sizes/font_size = 52
+modulate = Color(1, 1, 1, 0)
+
+[node name="Star3" type="Label" parent="ResultScreen/Panel/StarsRow"]
+layout_mode = 2
+text = "⭐"
+theme_override_font_sizes/font_size = 52
+modulate = Color(1, 1, 1, 0)
+
+[node name="StickerIcon" type="Label" parent="ResultScreen/Panel"]
+layout_mode = 2
+text = "🦊"
+theme_override_font_sizes/font_size = 80
+horizontal_alignment = 1
+visible = false
+
+[node name="StickerLabel" type="Label" parent="ResultScreen/Panel"]
+layout_mode = 2
+text = "Новая наклейка получена!"
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+visible = false
+
+[node name="Buttons" type="HBoxContainer" parent="ResultScreen/Panel"]
+layout_mode = 2
+alignment = 1
+
+[node name="RetryButton" type="Button" parent="ResultScreen/Panel/Buttons"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 54)
+text = "🔄 Ещё раз"
+theme_override_font_sizes/font_size = 17
+
+[node name="NextButton" type="Button" parent="ResultScreen/Panel/Buttons"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 54)
+text = "▶ Далее"
+theme_override_font_sizes/font_size = 17

@@ -1,157 +1,279 @@
-extends EpisodeBase
+extends Node2D
 
 # ─────────────────────────────────────────
-#  ep01.gd  —  Эпизод 1: "После горки"
-#  Тема: гипогликемия после физической нагрузки
+#  ep01.gd — Эпизод 1: "После горки"
 # ─────────────────────────────────────────
 
-# Шаги эпизода
-enum Step {
-	INTRO,          # 0 — Рыжик на скамейке, плохо себя чувствует
-	MEASURE,        # 1 — Мини-игра: измерить сахар глюкометром
-	CHOICE,         # 2 — Мини-игра: выбрать правильное действие
-	RECOVER,        # 3 — Анимация: сахар поднимается
-	EXPLAIN,        # 4 — Рыжик объясняет что произошло
-	RESULT,         # 5 — Экран награды
-}
+enum Step { INTRO, MEASURE, CHOICE, RECOVER, EXPLAIN, RESULT }
 
-# Варианты ответов для мини-игры "Выбор"
 const CHOICES := [
-	{ "text": "💧  Стакан воды",           "correct": false, "hint": "Вода не поднимает сахар — она не поможет быстро." },
-	{ "text": "🧃  Сок или сладкий напиток","correct": true,  "hint": "Правильно! Быстрый сахар — лучший выбор при гипо!" },
-	{ "text": "🥪  Бутерброд с хлебом",    "correct": false, "hint": "Хлеб поможет, но медленно. При гипо нужно быстрее!" },
+	{ "text": "💧  Стакан воды",            "correct": false, "hint": "Вода не поднимает сахар — она не поможет быстро." },
+	{ "text": "🧃  Сок или сладкий напиток", "correct": true,  "hint": "Правильно! Быстрый сахар — лучший выбор при гипо!" },
+	{ "text": "🥪  Бутерброд с хлебом",     "correct": false, "hint": "Хлеб поможет, но медленно. При гипо нужно быстрее!" },
 ]
 
-# Ссылки на узлы мини-игр (назначить в сцене)
-@onready var glucometer_minigame: Node = $Minigames/GlucometerTap
-@onready var choice_minigame:     Node = $Minigames/ChoiceCards
-@onready var sugar_meter:         Node = $UI/SugarMeter
-@onready var result_screen:       Node = $UI/ResultScreen
+@onready var ryzhik_block:   ColorRect     = $RyzhikPlaceholder
+@onready var status_icon:    Label         = $RyzhikPlaceholder/StatusIcon
+@onready var speech_panel:   CanvasLayer   = $SpeechBubble
+@onready var speech_label:   Label         = $SpeechBubble/Panel/Label
+@onready var progress_bar:   ProgressBar   = $UI/TopBar/ProgressBar
+@onready var story_label:    RichTextLabel = $UI/StoryCard/VBox/StoryLabel
+@onready var next_btn:       Button        = $UI/StoryCard/VBox/NextButton
+@onready var back_btn:       Button        = $UI/TopBar/BackButton
+@onready var sugar_meter:    Node          = $UI/SugarMeter
+@onready var meter_fill:     ProgressBar   = $UI/SugarMeter/FillBar
+@onready var meter_val:      Label         = $UI/SugarMeter/ValueLabel
+@onready var meter_zone:     Label         = $UI/SugarMeter/ZoneLabel
+@onready var glucometer_node: Node2D       = $Minigames/GlucometerTap
+@onready var gluco_btn:      Button        = $Minigames/GlucometerTap/DeviceButton
+@onready var gluco_display:  Label         = $Minigames/GlucometerTap/DeviceButton/Display
+@onready var gluco_hint:     Label         = $Minigames/GlucometerTap/TapHint
+@onready var choices_node:   VBoxContainer = $Minigames/ChoiceCards
+@onready var result_screen:  CanvasLayer   = $ResultScreen
+@onready var result_title:   Label         = $ResultScreen/Panel/TitleLabel
+@onready var result_msg:     Label         = $ResultScreen/Panel/MessageLabel
+@onready var star1:          Label         = $ResultScreen/Panel/StarsRow/Star1
+@onready var star2:          Label         = $ResultScreen/Panel/StarsRow/Star2
+@onready var star3:          Label         = $ResultScreen/Panel/StarsRow/Star3
+@onready var sticker_icon:   Label         = $ResultScreen/Panel/StickerIcon
+@onready var sticker_label:  Label         = $ResultScreen/Panel/StickerLabel
+@onready var retry_btn:      Button        = $ResultScreen/Panel/Buttons/RetryButton
+@onready var result_next:    Button        = $ResultScreen/Panel/Buttons/NextButton
 
-# ── Setup ──────────────────────────────────────────────────────────────────────
+var _wrong_count:  int  = 0
+var _gluco_tapped: bool = false
+var _answer_lock:  bool = false
 
-func _setup() -> void:
-	episode_id    = "ep01"
-	episode_title = "После горки"
-	sticker_id    = "sticker_hypo_hero"
-	_total_steps  = Step.size()
+func _ready() -> void:
+	speech_panel.visible    = false
+	sugar_meter.visible     = false
+	glucometer_node.visible = false
+	choices_node.visible    = false
+	result_screen.visible   = false
+	next_btn.visible        = false
 
-	# Подключаем сигналы мини-игр
-	glucometer_minigame.measurement_done.connect(_on_measurement_done)
-	choice_minigame.answer_selected.connect(_on_answer_selected)
+	next_btn.pressed.connect(_on_next)
+	back_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/EpisodeMap.tscn"))
+	gluco_btn.pressed.connect(_on_glucometer_tap)
+	retry_btn.pressed.connect(func(): get_tree().reload_current_scene())
+	result_next.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/EpisodeMap.tscn"))
 
-# ── Шаги ──────────────────────────────────────────────────────────────────────
+	_show_step(Step.INTRO)
 
-func _on_step(step: int) -> void:
-	# Прячем все мини-игры
-	glucometer_minigame.visible = false
-	choice_minigame.visible     = false
-	sugar_meter.visible         = false
+func _show_step(step: int) -> void:
+	progress_bar.value      = float(step) / float(Step.size()) * 100.0
+	glucometer_node.visible = false
+	choices_node.visible    = false
+	sugar_meter.visible     = false
 
 	match step:
-
 		Step.INTRO:
-			ryzhik.set_state("hypo")
-			ryzhik.say("Что-то голова кружится...", 3.0)
-			set_story_text(
-				"Рыжик весь день играл с друзьями на площадке.\n" +
-				"Он катался с горки, бегал и прыгал.\n\n" +
-				"Вдруг он сел на скамейку и сказал:\n" +
-				"[color=#FF7A2F]\"Что-то я устал... и голова кружится.\"[/color]"
-			)
-			set_next_btn_text("Что случилось? →")
-			show_next_btn(true)
+			_set_ryzhik("😟", Color(0.75, 0.85, 1.0))
+			_say("Голова кружится...")
+			_set_text("Рыжик весь день играл с друзьями на площадке. Бегал, прыгал, катался с горки.\n\nВдруг он сел на скамейку:\n[color=#FF7A2F]«Что-то я устал... голова кружится.»[/color]")
+			_show_btn("Что случилось? →")
 
 		Step.MEASURE:
-			ryzhik.set_state("hypo")
-			set_story_text(
-				"Мама достала [color=#FF7A2F]глюкометр[/color].\n\n" +
-				"Нужно измерить сахар в крови.\n" +
-				"[color=#888888]Нажми на глюкометр![/color]"
-			)
-			show_next_btn(false)
-			sugar_meter.visible = true
-			sugar_meter.set_value(3.1)   # низкий сахар
-			glucometer_minigame.visible = true
-			glucometer_minigame.start()
+			_set_ryzhik("😟", Color(0.75, 0.85, 1.0))
+			_hide_bubble()
+			_set_text("Мама достала [color=#FF7A2F]глюкометр[/color].\n\nНужно измерить сахар!\n[color=#888888]Нажми на глюкометр 👇[/color]")
+			next_btn.visible        = false
+			sugar_meter.visible     = true
+			glucometer_node.visible = true
+			_set_sugar(3.1)
+			gluco_display.text  = "----"
+			gluco_display.modulate = Color.WHITE
+			_gluco_tapped       = false
+			gluco_btn.disabled  = false
+			gluco_hint.visible  = true
 
 		Step.CHOICE:
-			ryzhik.set_state("hypo")
-			ryzhik.say("Что мне поможет?")
-			set_story_text(
-				"Сахар [color=#74B7FF]3.1[/color] — это мало! 😟\n\n" +
-				"Нужно помочь Рыжику. Выбери, что дать ему [color=#FF7A2F]прямо сейчас:[/color]"
-			)
-			show_next_btn(false)
-			choice_minigame.visible = true
-			choice_minigame.setup(CHOICES)
+			_set_ryzhik("😟", Color(0.75, 0.85, 1.0))
+			_say("Что мне поможет?")
+			_set_text("Сахар [color=#74B7FF][b]3.1[/b][/color] ммоль/л — это мало! 😟\n\nВыбери, что дать Рыжику [color=#FF7A2F]прямо сейчас:[/color]")
+			next_btn.visible     = false
+			choices_node.visible = true
+			_build_choices()
 
 		Step.RECOVER:
-			ryzhik.set_state("normal")
-			set_story_text(
-				"Рыжик выпил сок.\n\n" +
-				"Подождём немного... сахар начинает подниматься!"
-			)
-			show_next_btn(false)
+			_set_ryzhik("🙂", Color(1.0, 1.0, 1.0))
+			_hide_bubble()
+			_set_text("Рыжик выпил сок.\n\nСахар начинает подниматься... подождём!")
+			next_btn.visible    = false
 			sugar_meter.visible = true
-			# Запускаем анимацию роста сахара
-			sugar_meter.animate_to(5.8, 3.0, _on_sugar_recovered)
+			_set_sugar(3.1)
+			_animate_sugar(5.8, 3.0)
 
 		Step.EXPLAIN:
-			ryzhik.set_state("explaining")
-			ryzhik.say("Я объясню! 🦊")
-			set_story_text(
-				"[color=#FF7A2F]Что такое гипогликемия?[/color]\n\n" +
-				"Когда я много бегаю — мышцы \"съедают\" сахар из крови. " +
-				"Сахар падает низко, и мне становится плохо: кружится голова, трясутся лапки.\n\n" +
-				"[color=#FF7A2F]Почему сок — лучший выбор?[/color]\n\n" +
-				"В соке [b]быстрый сахар[/b] — он попадает в кровь за 10–15 минут! " +
-				"Бутерброд тоже поможет, но медленнее — он для \"потом\"."
+			_set_ryzhik("💬", Color(1.0, 1.0, 1.0))
+			_say("Я объясню! 🦊")
+			_set_text(
+				"[color=#FF7A2F][b]Что такое гипогликемия?[/b][/color]\n" +
+				"Когда я много бегаю — мышцы «съедают» сахар из крови. Сахар падает, и мне плохо.\n\n" +
+				"[color=#FF7A2F][b]Почему сок — лучший выбор?[/b][/color]\n" +
+				"В соке быстрый сахар — он попадает в кровь за 10–15 минут! Бутерброд поможет, но медленнее."
 			)
-			set_next_btn_text("Получить награду! ⭐")
-			show_next_btn(true)
+			_show_btn("Получить награду! ⭐")
 
 		Step.RESULT:
-			result_screen.show_result(
-				episode_title,
-				_stars_earned,
-				sticker_id,
-				"Ты настоящий герой! Рыжик говорит спасибо! 🦊"
-			)
+			_show_result()
 
-# ── Колбэки мини-игр ───────────────────────────────────────────────────────────
+# ── Кнопка "Далее" ─────────────────────────────────────────────────────────────
 
-func _on_measurement_done(value: float) -> void:
-	# Глюкометр показал значение — переходим к выбору
-	AudioManager.play_sfx("glucometer")
-	set_story_text(
-		"Глюкометр показывает [color=#74B7FF][b]%.1f[/b][/color] ммоль/л.\n\n" % value +
-		"Это [color=#74B7FF]мало[/color]! Норма — от 4 до 8 ммоль/л.\n" +
-		"Нужно действовать!"
-	)
-	await get_tree().create_timer(1.5).timeout
-	next_step()
+var _current_step: int = 0
 
-func _on_answer_selected(is_correct: bool, hint: String) -> void:
-	if is_correct:
-		register_correct()
-		ryzhik.set_state("happy")
-		ryzhik.say("Правильно! 🎉", 2.0)
+func _on_next() -> void:
+	_current_step += 1
+	_show_step(_current_step)
+
+# ── Глюкометр ──────────────────────────────────────────────────────────────────
+
+func _on_glucometer_tap() -> void:
+	if _gluco_tapped:
+		return
+	_gluco_tapped      = true
+	gluco_btn.disabled = true
+	gluco_hint.visible = false
+
+	var vals := ["---", "5.2", "2.8", "4.1", "---", "3.8", "3.1"]
+	for v in vals:
+		await get_tree().create_timer(0.18).timeout
+		gluco_display.text = v
+
+	gluco_display.modulate = Color(0.45, 0.72, 1.0)
+	await get_tree().create_timer(0.8).timeout
+
+	_set_text("Глюкометр показывает [color=#74B7FF][b]3.1[/b][/color] ммоль/л.\n\nЭто [color=#74B7FF]мало[/color]! Норма — 4–8 ммоль/л.")
+	_show_btn("Помочь Рыжику! →")
+
+# ── Выбор карточки ─────────────────────────────────────────────────────────────
+
+func _build_choices() -> void:
+	for c in choices_node.get_children():
+		c.queue_free()
+	_answer_lock = false
+
+	for i in CHOICES.size():
+		var data: Dictionary = CHOICES[i]
+		var btn := Button.new()
+		btn.text  = data["text"]
+		btn.custom_minimum_size = Vector2(380, 64)
+		btn.add_theme_font_size_override("font_size", 17)
+		choices_node.add_child(btn)
+
+		var correct: bool   = data["correct"]
+		var hint:    String = data["hint"]
+		btn.pressed.connect(_on_choice.bind(btn, correct, hint))
+
+		btn.modulate.a = 0.0
+		var tw := create_tween()
+		tw.tween_interval(i * 0.12)
+		tw.tween_property(btn, "modulate:a", 1.0, 0.2)
+
+func _on_choice(btn: Button, correct: bool, hint: String) -> void:
+	if _answer_lock:
+		return
+
+	if correct:
+		_answer_lock = true
+		btn.modulate = Color(0.88, 1.0, 0.90)
+		btn.text    += "\n✅ " + hint
+		_set_ryzhik("😊", Color(1.05, 1.05, 0.95))
+		_say("Правильно! 🎉")
 		await get_tree().create_timer(1.2).timeout
-		next_step()
+		_answer_lock = false
+		_current_step += 1
+		_show_step(_current_step)
 	else:
-		register_wrong()
-		ryzhik.say("Попробуй ещё раз!", 2.0)
-		# choice_minigame сам подсветит неправильный вариант
-		# и позволит выбрать снова
+		_wrong_count += 1
+		btn.modulate = Color(1.0, 0.84, 0.84)
+		btn.text    += "\n❌ " + hint
+		var orig := btn.position.x
+		var tw   := create_tween()
+		for _i in 3:
+			tw.tween_property(btn, "position:x", orig - 8, 0.05)
+			tw.tween_property(btn, "position:x", orig + 8, 0.05)
+		tw.tween_property(btn, "position:x", orig, 0.05)
+		await get_tree().create_timer(1.0).timeout
+		btn.modulate = Color.WHITE
+		var lines := btn.text.split("\n")
+		btn.text = lines[0]
 
-func _on_sugar_recovered() -> void:
-	# Сахар достиг нормы
-	ryzhik.set_state("happy")
-	ryzhik.say("Уже лучше! 😊", 2.0)
-	set_story_text(
-		"Сахар поднялся до [color=#06D6A0][b]5.8[/b][/color] ммоль/л.\n\n" +
-		"[color=#06D6A0]Это норма! Рыжик снова улыбается 🎉[/color]"
-	)
-	set_next_btn_text("Узнать почему →")
-	show_next_btn(true)
+# ── Анимация сахара ────────────────────────────────────────────────────────────
+
+func _animate_sugar(target: float, duration: float) -> void:
+	var start   := 3.1
+	var elapsed := 0.0
+	while elapsed < duration:
+		elapsed += get_process_delta_time()
+		_set_sugar(lerpf(start, target, clampf(elapsed / duration, 0.0, 1.0)))
+		await get_tree().process_frame
+	_set_sugar(target)
+	_set_ryzhik("😊", Color(1.05, 1.05, 0.95))
+	_say("Уже лучше! 😊")
+	_set_text("Сахар поднялся до [color=#06D6A0][b]5.8[/b][/color] ммоль/л.\n\n[color=#06D6A0]Это норма! Рыжик снова улыбается 🎉[/color]")
+	_show_btn("Узнать почему →")
+
+# ── Экран результата ───────────────────────────────────────────────────────────
+
+func _show_result() -> void:
+	result_screen.visible = true
+	var stars := clampi(3 - _wrong_count, 1, 3)
+	result_title.text = "После горки 🛝"
+	result_msg.text   = "Ты настоящий герой!\nРыжик говорит спасибо! 🦊"
+	GameState.complete_episode("ep01", stars, "sticker_hypo_hero")
+
+	var snodes := [star1, star2, star3]
+	for i in 3:
+		var s: Label = snodes[i]
+		s.modulate   = Color(1, 1, 1, 0) if i < stars else Color(0.5, 0.5, 0.5, 0.0)
+		var tw := create_tween()
+		tw.tween_interval(0.3 + i * 0.22)
+		tw.tween_property(s, "modulate:a", 1.0, 0.15)
+		tw.tween_property(s, "scale", Vector2(1.3, 1.3), 0.15).set_trans(Tween.TRANS_BACK)
+		tw.tween_property(s, "scale", Vector2.ONE, 0.1)
+
+	await get_tree().create_timer(1.3).timeout
+	sticker_icon.visible  = true
+	sticker_label.visible = true
+	sticker_icon.modulate.a  = 0.0
+	sticker_label.modulate.a = 0.0
+	var tw2 := create_tween()
+	tw2.tween_property(sticker_icon,  "modulate:a", 1.0, 0.4)
+	tw2.parallel().tween_property(sticker_label, "modulate:a", 1.0, 0.4)
+
+# ── Хелперы ────────────────────────────────────────────────────────────────────
+
+func _set_ryzhik(icon: String, color: Color) -> void:
+	status_icon.text = icon
+	create_tween().tween_property(ryzhik_block, "modulate", color, 0.4)
+
+func _say(text: String) -> void:
+	speech_label.text    = text
+	speech_panel.visible = true
+
+func _hide_bubble() -> void:
+	speech_panel.visible = false
+
+func _set_text(bbcode: String) -> void:
+	story_label.text = bbcode
+
+func _show_btn(label: String) -> void:
+	next_btn.text    = label
+	next_btn.visible = true
+
+func _set_sugar(val: float) -> void:
+	meter_fill.value = val
+	meter_val.text   = "%.1f" % val
+	var color: Color
+	var zone:  String
+	if val < 4.0:
+		color = Color(0.45, 0.72, 1.0); zone = "Низкий 📉"
+	elif val > 8.0:
+		color = Color(0.94, 0.28, 0.44); zone = "Высокий 📈"
+	else:
+		color = Color(0.02, 0.84, 0.63); zone = "Норма ✅"
+	meter_fill.modulate = color
+	meter_val.modulate  = color
+	meter_zone.text     = zone
+	meter_zone.modulate = color
